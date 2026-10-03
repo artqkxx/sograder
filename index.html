@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="ru" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SOGRADER — Standoff 2 Upgrader</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              gold: '#eab308',
+              goldHover: '#ca8a04',
+              darkBg: '#0b0d12',
+              cardBg: '#131722',
+              cardBorder: '#1e2433',
+              cardHover: '#252d3f',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { background-color: #0b0d12; color: #e2e8f0; font-family: system-ui, -apple-system, sans-serif; }
+    .custom-scrollbar::-webkit-scrollbar { width: 5px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: #0f1219; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #232b3e; border-radius: 2px; }
+    .dial-glow { filter: drop-shadow(0px 0px 15px rgba(234, 179, 8, 0.25)); }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between select-none">
+
+  <!-- TOP NAVIGATION HEADER -->
+  <header class="border-b border-brand-cardBorder bg-[#0e111a] px-6 py-3 flex items-center justify-between sticky top-0 z-40">
+    <div class="flex items-center space-x-6">
+      <div onclick="switchTab('upgrader')" class="flex items-center space-x-2 font-black text-xl tracking-wider text-white cursor-pointer">
+        <svg class="w-6 h-6 text-brand-gold" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 11l7-7 7 7M5 19l7-7 7 7"/>
+        </svg>
+        <span>SOGRADER</span>
+      </div>
+      <nav class="hidden md:flex items-center space-x-4 text-xs font-semibold text-gray-400">
+        <button id="nav-upgrader" onclick="switchTab('upgrader')" class="text-brand-gold border-b-2 border-brand-gold pb-1 transition">АПГРЕЙДЕР</button>
+        <button id="nav-profile" onclick="switchTab('profile')" class="hover:text-white transition pb-1">ПРОФИЛЬ</button>
+      </nav>
+    </div>
+
+    <!-- USER AUTH & DEPOSIT SECTION -->
+    <div class="flex items-center space-x-3" id="authSection"></div>
+  </header>
+
+  <!-- MAIN CONTAINER -->
+  <main class="max-w-7xl w-full mx-auto p-4 md:p-6 space-y-6 flex-1">
+
+    <!-- TAB 1: UPGRADER ARENA -->
+    <div id="tab-upgrader-content" class="space-y-6">
+      <div class="bg-brand-cardBg border border-brand-cardBorder rounded-sm p-6 relative overflow-hidden">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+          
+          <!-- LEFT: SELECTED MY SKINS -->
+          <div class="lg:col-span-3 flex flex-col items-center justify-center p-4 bg-[#0a0c10] border border-brand-cardBorder rounded-sm h-56 relative">
+            <button id="fastSpinBtn" onclick="toggleFastSpin()" title="Быстрая прокрутка" class="absolute top-2 right-2 text-gray-500 hover:text-brand-gold transition p-1 rounded z-10">
+              <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                <path d="M13 2L3 14h7v8l10-12h-7z"/>
+              </svg>
+            </button>
+
+            <span class="text-xs uppercase font-bold text-gray-400 mb-2">Выберите скины</span>
+            <div id="selectedMyItemsPreview" class="flex flex-wrap gap-2 justify-center items-center overflow-y-auto max-h-36 custom-scrollbar w-full p-2">
+              <span class="text-xs text-gray-500 text-center">Нажмите на скин из инвентаря снизу</span>
+            </div>
+            <div class="absolute bottom-2 text-[11px] text-gray-400">
+              Сумма: <span id="mySelectedSum" class="text-brand-gold font-bold">0.00 G</span>
+            </div>
+          </div>
+
+          <!-- CENTER: DIAL & SPINNER -->
+          <div class="lg:col-span-6 flex flex-col items-center justify-center relative">
+            <div class="relative w-64 h-64 flex items-center justify-center dial-glow">
+              <svg class="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r="42" stroke="#1c2230" stroke-width="6" fill="transparent"/>
+                <circle id="chanceCircleArc" cx="50" cy="50" r="42" stroke="#eab308" stroke-width="6" fill="transparent"
+                  stroke-dasharray="263.89" stroke-dashoffset="263.89" stroke-linecap="butt" class="transition-all duration-300"/>
+              </svg>
+
+              <div id="pointerArrowContainer" class="absolute inset-0 flex items-start justify-center transition-transform ease-out">
+                <div id="pointerArrow" class="w-0 h-0 border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent border-t-[14px] border-t-brand-gold -mt-1 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]"></div>
+              </div>
+
+              <div class="absolute inset-0 flex flex-col items-center justify-center text-center">
+                <span id="chancePercentText" class="text-3xl font-black tracking-tight text-white">0.00%</span>
+                <span id="chanceStatusText" class="text-[10px] uppercase font-semibold text-gray-400 tracking-wider">Шанс успеха</span>
+              </div>
+            </div>
+
+            <!-- ACTION BUTTON & QUICK MULTIPLIERS -->
+            <div class="w-full max-w-md mt-4 flex flex-col space-y-3">
+              <button id="upgradeBtn" onclick="handleStartUpgrade()" class="w-full py-3 bg-brand-gold hover:bg-brand-goldHover text-black font-black uppercase text-sm tracking-wider rounded-sm shadow-md transition flex items-center justify-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 11l7-7 7 7M5 19l7-7 7 7"/></svg>
+                <span id="upgradeBtnText">Прокачать</span>
+              </button>
+
+              <div id="resultNotification" class="hidden w-full py-2.5 px-4 rounded-sm text-center font-bold text-xs uppercase tracking-wider transition-all duration-300"></div>
+
+              <div class="flex items-center justify-between bg-[#0a0c10] border border-brand-cardBorder rounded-sm p-1.5 text-xs">
+                <div id="multButtonsContainer" class="flex items-center space-x-2"></div>
+                <div class="h-4 w-[1px] bg-brand-cardBorder mx-2"></div>
+                <div id="chanceButtonsContainer" class="flex items-center space-x-2"></div>
+
+                <button onclick="openSettingsModal()" class="p-2 text-gray-400 hover:text-white transition ml-2 bg-[#131722] hover:bg-[#1e2433] rounded-sm border border-brand-cardBorder" title="Настройки">
+                  <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- RIGHT: TARGET ITEM -->
+          <div class="lg:col-span-3 flex flex-col items-center justify-center p-4 bg-[#0a0c10] border border-brand-cardBorder rounded-sm h-56 relative">
+            <span class="text-xs uppercase font-bold text-gray-400 mb-2">Целевой скин</span>
+            <div id="targetItemPreview" class="flex flex-col items-center justify-center w-full h-full">
+              <span class="text-xs text-gray-500 text-center">Выберите скин из каталога справа</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- LOWER PANELS -->
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div class="lg:col-span-5 bg-brand-cardBg border border-brand-cardBorder rounded-sm p-4 flex flex-col h-[500px]">
+          <div class="flex items-center justify-between pb-3 border-b border-brand-cardBorder mb-3">
+            <div class="flex items-center space-x-1 bg-[#0a0c10] p-1 border border-brand-cardBorder rounded-sm">
+              <button id="leftTabInvBtn" onclick="setLeftPanelTab('inventory')" class="px-3 py-1 bg-brand-gold text-black font-bold text-xs rounded-sm flex items-center space-x-1 transition">
+                <span>Инвентарь</span>
+              </button>
+              <button id="leftTabShopBtn" onclick="setLeftPanelTab('shop')" class="px-3 py-1 text-gray-400 hover:text-white font-bold text-xs rounded-sm flex items-center space-x-1 transition">
+                <span>Магазин</span>
+              </button>
+            </div>
+            <span id="leftPanelCount" class="text-xs text-gray-400">0 предм.</span>
+          </div>
+          <div id="leftPanelGrid" class="grid grid-cols-3 gap-2 overflow-y-auto custom-scrollbar flex-1 pr-1"></div>
+        </div>
+
+        <div class="lg:col-span-7 bg-brand-cardBg border border-brand-cardBorder rounded-sm p-4 flex flex-col h-[500px]">
+          <div class="flex items-center justify-between pb-3 border-b border-brand-cardBorder mb-3">
+            <h2 class="text-xs font-bold uppercase text-white">Каталог для апгрейда</h2>
+            <div class="flex items-center space-x-2 text-xs">
+              <input id="searchInput" oninput="renderStore()" type="text" placeholder="Поиск..." class="bg-[#0a0c10] border border-brand-cardBorder px-2 py-1 rounded-sm text-gray-200 focus:outline-none focus:border-brand-gold w-28">
+            </div>
+          </div>
+          <div id="storeGrid" class="grid grid-cols-4 gap-2 overflow-y-auto custom-scrollbar flex-1 pr-1"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 2: PROFILE PAGE -->
+    <div id="tab-profile-content" class="hidden space-y-6">
+      <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
+        <div class="md:col-span-4 bg-brand-cardBg border border-brand-cardBorder p-4 rounded-sm flex items-center space-x-4">
+          <div class="w-16 h-16 bg-[#0a0c10] border border-brand-cardBorder rounded-sm flex items-center justify-center font-bold text-xl text-brand-gold" id="profileAvatar">U</div>
+          <div>
+            <h3 id="profileUsername" class="font-bold text-white text-base">Гость</h3>
+            <span id="profileUserId" class="text-xs text-gray-500">ID 000000</span>
+          </div>
+        </div>
+
+        <div class="md:col-span-5 bg-brand-cardBg border border-brand-cardBorder p-4 rounded-sm flex flex-col justify-between space-y-3">
+          <div class="flex items-center justify-between">
+            <div>
+              <span class="text-xs text-gray-400 block">Баланс</span>
+              <span id="profileBalance" class="text-2xl font-black text-brand-gold">0.00 🪙</span>
+            </div>
+            <button onclick="openDepositModal()" class="bg-brand-gold hover:bg-brand-goldHover text-black font-bold text-xs px-4 py-2 rounded-sm uppercase">+ Пополнить баланс</button>
+          </div>
+          <div class="flex items-center space-x-2">
+            <input id="promoInput" type="text" placeholder="Введите купон" class="bg-[#0a0c10] border border-brand-cardBorder px-3 py-1.5 text-xs rounded-sm focus:outline-none focus:border-brand-gold flex-1 text-white">
+            <button onclick="applyPromoCode()" class="bg-[#1e2433] hover:bg-[#283144] text-white text-xs font-bold px-3 py-1.5 rounded-sm">Применить</button>
+          </div>
+        </div>
+
+        <div class="md:col-span-3 bg-brand-cardBg border border-brand-cardBorder p-4 rounded-sm flex flex-col justify-between">
+          <span class="text-xs text-gray-400 uppercase font-semibold">Лучший дроп</span>
+          <div class="flex items-center space-x-3 my-1">
+            <div class="text-xs">
+              <div id="profileBestDropName" class="font-bold text-white">Нет дропа</div>
+              <div id="profileBestDropPrice" class="text-brand-gold font-bold">0.00 🪙</div>
+            </div>
+          </div>
+          <div class="flex items-center justify-between text-xs text-gray-400 border-t border-brand-cardBorder pt-2">
+            <span>Апгрейдов: <b id="profileUpgradesCount" class="text-white">0</b></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="bg-brand-cardBg border border-brand-cardBorder rounded-sm p-4">
+        <h3 class="text-xs font-bold text-white uppercase mb-4">Предметы в инвентаре</h3>
+        <div id="profileInventoryGrid" class="grid grid-cols-2 md:grid-cols-6 gap-3"></div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- MODALS -->
+  <div id="settingsModal" class="fixed inset-0 bg-black/80 hidden z-50 flex items-center justify-center p-4">
+    <div class="bg-[#131722] border border-brand-cardBorder w-full max-w-lg p-6 rounded-sm space-y-6 relative">
+      <div class="flex items-center justify-between border-b border-brand-cardBorder pb-3">
+        <div class="flex items-center space-x-2 text-white font-bold text-base">
+          <svg class="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd"/></svg>
+          <span>Настройки</span>
+        </div>
+        <button onclick="closeSettingsModal()" class="text-gray-400 hover:text-white">✕</button>
+      </div>
+
+      <div class="space-y-3">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold uppercase text-white">Быстрый подбор</span>
+          <button onclick="resetSettingsDefaults()" class="text-[11px] text-brand-gold hover:underline font-semibold">По умолчанию</button>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="bg-[#0a0c10] border border-brand-cardBorder p-3 rounded-sm space-y-2">
+            <span class="text-[11px] text-gray-400 block font-medium">Коэффициенты</span>
+            <div class="flex items-center space-x-2">
+              <input id="settingMult1" type="number" step="0.5" class="w-full bg-[#131722] border border-brand-cardBorder p-1.5 text-xs text-white rounded-sm text-center font-bold">
+              <input id="settingMult2" type="number" step="0.5" class="w-full bg-[#131722] border border-brand-cardBorder p-1.5 text-xs text-white rounded-sm text-center font-bold">
+              <input id="settingMult3" type="number" step="0.5" class="w-full bg-[#131722] border border-brand-cardBorder p-1.5 text-xs text-white rounded-sm text-center font-bold">
+            </div>
+          </div>
+
+          <div class="bg-[#0a0c10] border border-brand-cardBorder p-3 rounded-sm space-y-2">
+            <span class="text-[11px] text-gray-400 block font-medium">Проценты (%)</span>
+            <div class="flex items-center space-x-2">
+              <input id="settingChance1" type="number" max="70" class="w-full bg-[#131722] border border-brand-cardBorder p-1.5 text-xs text-white rounded-sm text-center font-bold">
+              <input id="settingChance2" type="number" max="70" class="w-full bg-[#131722] border border-brand-cardBorder p-1.5 text-xs text-white rounded-sm text-center font-bold">
+              <input id="settingChance3" type="number" max="70" class="w-full bg-[#131722] border border-brand-cardBorder p-1.5 text-xs text-white rounded-sm text-center font-bold">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="space-y-3 pt-2 border-t border-brand-cardBorder">
+        <span class="text-xs font-bold uppercase text-white block">Тип прокрутки</span>
+        <div class="space-y-2">
+          <label class="flex items-start space-x-3 cursor-pointer">
+            <input type="radio" name="spinTypeRadio" value="normal" class="mt-0.5 accent-brand-gold" onchange="setFastSpinFromRadio(false)">
+            <div>
+              <span class="text-xs font-bold text-white block">Обычная</span>
+              <span class="text-[11px] text-gray-400 block">Плавная прокрутка (3.5 сек)</span>
+            </div>
+          </label>
+          <label class="flex items-start space-x-3 cursor-pointer">
+            <input type="radio" name="spinTypeRadio" value="fast" class="mt-0.5 accent-brand-gold" onchange="setFastSpinFromRadio(true)">
+            <div>
+              <span class="text-xs font-bold text-white block">Ускоренная</span>
+              <span class="text-[11px] text-gray-400 block">Быстрая прокрутка (0.6 сек)</span>
+            </div>
+          </label>
+        </div>
+      </div>
+
+      <button onclick="saveAndCloseSettings()" class="w-full bg-brand-gold hover:bg-brand-goldHover text-black font-bold text-xs py-2.5 rounded-sm uppercase tracking-wider">
+        Сохранить и закрыть
+      </button>
+    </div>
+  </div>
+
+  <div id="depositModal" class="fixed inset-0 bg-black/80 hidden z-50 flex items-center justify-center p-4">
+    <div class="bg-brand-cardBg border border-brand-cardBorder w-full max-w-md p-6 rounded-sm space-y-4">
+      <div class="flex items-center justify-between border-b border-brand-cardBorder pb-2">
+        <h3 class="text-sm font-bold uppercase text-white">Пополнение баланса</h3>
+        <button onclick="closeDepositModal()" class="text-gray-400 hover:text-white">✕</button>
+      </div>
+
+      <div class="space-y-3">
+        <label class="block text-xs font-semibold text-gray-400">Выберите сумму Gold (G):</label>
+        <div class="grid grid-cols-3 gap-2">
+          <button onclick="selectDepositAmount(100)" class="bg-[#0a0c10] border border-brand-cardBorder py-2 text-xs font-bold text-brand-gold hover:border-brand-gold">100 G</button>
+          <button onclick="selectDepositAmount(500)" class="bg-[#0a0c10] border border-brand-cardBorder py-2 text-xs font-bold text-brand-gold hover:border-brand-gold">500 G</button>
+          <button onclick="selectDepositAmount(1000)" class="bg-[#0a0c10] border border-brand-cardBorder py-2 text-xs font-bold text-brand-gold hover:border-brand-gold">1000 G</button>
+        </div>
+        <input id="customDepositInput" type="number" placeholder="Или введите свою сумму" class="w-full bg-[#0a0c10] border border-brand-cardBorder p-2 text-xs text-white rounded-sm">
+      </div>
+
+      <button onclick="processStarsDeposit()" class="w-full bg-brand-gold hover:bg-brand-goldHover text-black font-bold text-xs py-3 rounded-sm uppercase tracking-wider">
+        Оплатить через Telegram Stars ⭐
+      </button>
+    </div>
+  </div>
+
+  <div id="authModal" class="fixed inset-0 bg-black/80 hidden z-50 flex items-center justify-center p-4">
+    <div class="bg-brand-cardBg border border-brand-cardBorder w-full max-w-sm p-6 rounded-sm space-y-4">
+      <div class="flex items-center justify-between border-b border-brand-cardBorder pb-2">
+        <h3 id="authModalTitle" class="text-sm font-bold uppercase text-white">Авторизация</h3>
+        <button onclick="closeAuthModal()" class="text-gray-400 hover:text-white">✕</button>
+      </div>
+      <div class="space-y-3">
+        <div>
+          <label class="block text-xs font-semibold text-gray-400 mb-1">Имя пользователя</label>
+          <input id="authUsername" type="text" class="w-full bg-[#0a0c10] border border-brand-cardBorder p-2 text-xs text-white rounded-sm focus:outline-none">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-gray-400 mb-1">Пароль</label>
+          <input id="authPassword" type="password" class="w-full bg-[#0a0c10] border border-brand-cardBorder p-2 text-xs text-white rounded-sm focus:outline-none">
+        </div>
+      </div>
+      <div class="pt-2 flex flex-col space-y-2">
+        <button id="authSubmitBtn" onclick="submitAuth()" class="w-full bg-brand-gold hover:bg-brand-goldHover text-black font-bold text-xs py-2.5 rounded-sm uppercase">Войти</button>
+        <button id="authToggleBtn" onclick="toggleAuthMode()" class="text-xs text-gray-400 hover:text-white text-center">Зарегистрироваться</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = 'http://localhost:5000/api';
+    let currentUser = null;
+    let authMode = 'login';
+
+    let activeLeftTab = 'inventory'; 
+    let selectedMyItems = [];
+    let selectedTargetItem = null;
+
+    let isFastSpin = false;
+    let customMults = [1.5, 2, 4];
+    let customChances = [25, 50, 70];
+
+    let storeSkins = [
+      { id: 'st_1', name: 'M4A1 Dragon', price: 1500, rarity: 'arcane', image: '/img/m4a1_dragon.png' },
+      { id: 'st_2', name: 'Karambit Gold', price: 12000, rarity: 'nameless', image: '/img/karambit_gold.png' },
+      { id: 'st_3', name: 'AKR Treasure', price: 4500, rarity: 'arcane', image: '/img/akr_treasure.png' },
+      { id: 'st_4', name: 'AWM Sport', price: 850, rarity: 'legendary', image: '/img/awm_sport.png' },
+      { id: 'st_5', name: 'G22 Relic', price: 250, rarity: 'epic', image: '/img/g22_relic.png' },
+      { id: 'st_6', name: 'Butterfly Star', price: 8900, rarity: 'nameless', image: '/img/butterfly_star.png' }
+    ];
+
+    window.onload = async () => {
+      await checkAuthStatus();
+      renderQuickButtons();
+      renderStore();
+      updateGauge();
+    };
+
+    function renderQuickButtons() {
+      const multContainer = document.getElementById('multButtonsContainer');
+      const chanceContainer = document.getElementById('chanceButtonsContainer');
+
+      multContainer.innerHTML = customMults.map(m => `
+        <button onclick="applyMultiplier(${m})" class="px-3 py-1.5 bg-[#131722] hover:bg-[#1e2433] border border-brand-cardBorder text-gray-300 hover:text-white font-bold text-xs rounded-sm transition flex items-center justify-center">
+          x${m}
+        </button>
+      `).join('');
+
+      chanceContainer.innerHTML = customChances.map(c => `
+        <button onclick="applyChance(${c})" class="px-3 py-1.5 bg-[#131722] hover:bg-[#1e2433] border border-brand-cardBorder text-gray-300 hover:text-white font-bold text-xs rounded-sm transition flex items-center justify-center">
+          ${c}%
+        </button>
+      `).join('');
+    }
+
+    function toggleFastSpin() {
+      isFastSpin = !isFastSpin;
+      updateFastSpinUI();
+    }
+
+    function setFastSpinFromRadio(val) {
+      isFastSpin = val;
+      updateFastSpinUI();
+    }
+
+    function updateFastSpinUI() {
+      const btn = document.getElementById('fastSpinBtn');
+      const arrowContainer = document.getElementById('pointerArrowContainer');
+
+      if (isFastSpin) {
+        btn.className = "absolute top-2 right-2 text-brand-gold hover:text-yellow-300 transition p-1 rounded bg-brand-gold/10 z-10";
+        arrowContainer.style.transitionDuration = "600ms";
+      } else {
+        btn.className = "absolute top-2 right-2 text-gray-500 hover:text-brand-gold transition p-1 rounded z-10";
+        arrowContainer.style.transitionDuration = "3500ms";
+      }
+
+      const radios = document.getElementsByName('spinTypeRadio');
+      radios.forEach(r => {
+        if (r.value === 'fast') r.checked = isFastSpin;
+        if (r.value === 'normal') r.checked = !isFastSpin;
+      });
+    }
+
+    function openSettingsModal() {
+      document.getElementById('settingMult1').value = customMults[0];
+      document.getElementById('settingMult2').value = customMults[1];
+      document.getElementById('settingMult3').value = customMults[2];
+
+      document.getElementById('settingChance1').value = customChances[0];
+      document.getElementById('settingChance2').value = customChances[1];
+      document.getElementById('settingChance3').value = customChances[2];
+
+      updateFastSpinUI();
+      document.getElementById('settingsModal').classList.remove('hidden');
+    }
+
+    function closeSettingsModal() {
+      document.getElementById('settingsModal').classList.add('hidden');
+    }
+
+    function resetSettingsDefaults() {
+      customMults = [1.5, 2, 4];
+      customChances = [25, 50, 70];
+      isFastSpin = false;
+      openSettingsModal();
+    }
+
+    function saveAndCloseSettings() {
+      const m1 = parseFloat(document.getElementById('settingMult1').value) || 1.5;
+      const m2 = parseFloat(document.getElementById('settingMult2').value) || 2;
+      const m3 = parseFloat(document.getElementById('settingMult3').value) || 4;
+
+      const c1 = parseFloat(document.getElementById('settingChance1').value) || 25;
+      const c2 = parseFloat(document.getElementById('settingChance2').value) || 50;
+      const c3 = parseFloat(document.getElementById('settingChance3').value) || 70;
+
+      customMults = [m1, m2, m3];
+      customChances = [c1, c2, c3];
+
+      renderQuickButtons();
+      closeSettingsModal();
+    }
+
+    function switchTab(tab) {
+      ['upgrader', 'profile'].forEach(t => {
+        document.getElementById(`tab-${t}-content`).classList.add('hidden');
+        document.getElementById(`nav-${t}`).classList.remove('text-brand-gold', 'border-b-2', 'border-brand-gold');
+      });
+
+      document.getElementById(`tab-${tab}-content`).classList.remove('hidden');
+      document.getElementById(`nav-${tab}`).classList.add('text-brand-gold', 'border-b-2', 'border-brand-gold');
+
+      if (tab === 'profile') renderProfilePage();
+    }
+
+    async function checkAuthStatus() {
+      const token = localStorage.getItem('upgrader_token');
+      if (!token) {
+        currentUser = null;
+        renderHeaderAuth();
+        renderLeftPanel();
+        return;
+      }
+
+      try {
+        const res = await fetch(`${API_BASE}/auth/me`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (data.success) currentUser = data.user;
+        else localStorage.removeItem('upgrader_token');
+      } catch (e) {
+        console.warn('Сервер недоступен');
+      }
+      renderHeaderAuth();
+      renderLeftPanel();
+    }
+
+    function renderHeaderAuth() {
+      const el = document.getElementById('authSection');
+      if (currentUser) {
+        el.innerHTML = `
+          <div class="flex items-center space-x-3 text-xs">
+            <span class="text-gray-300 font-bold cursor-pointer" onclick="switchTab('profile')">${currentUser.username}</span>
+            <div class="bg-[#0a0c10] border border-brand-cardBorder px-2.5 py-1.5 rounded-sm text-brand-gold font-bold">
+              ${currentUser.balance.toFixed(2)} G
+            </div>
+            <button onclick="openDepositModal()" class="bg-brand-gold hover:bg-brand-goldHover text-black font-bold px-3 py-1.5 rounded-sm uppercase">
+              + Пополнить
+            </button>
+            <button onclick="logout()" class="text-gray-400 hover:text-white transition">Выйти</button>
+          </div>
+        `;
+      } else {
+        el.innerHTML = `
+          <button onclick="openAuthModal('login')" class="px-3 py-1.5 border border-brand-cardBorder hover:border-brand-gold text-xs text-white rounded-sm transition">Войти</button>
+          <button onclick="openAuthModal('register')" class="px-3 py-1.5 bg-brand-gold hover:bg-brand-goldHover text-xs font-bold text-black rounded-sm transition">Регистрация</button>
+        `;
+      }
+    }
+
+    function setLeftPanelTab(tab) {
+      activeLeftTab = tab;
+      const invBtn = document.getElementById('leftTabInvBtn');
+      const shopBtn = document.getElementById('leftTabShopBtn');
+
+      if (tab === 'inventory') {
+        invBtn.className = "px-3 py-1 bg-brand-gold text-black font-bold text-xs rounded-sm flex items-center space-x-1 transition";
+        shopBtn.className = "px-3 py-1 text-gray-400 hover:text-white font-bold text-xs rounded-sm flex items-center space-x-1 transition";
+      } else {
+        shopBtn.className = "px-3 py-1 bg-brand-gold text-black font-bold text-xs rounded-sm flex items-center space-x-1 transition";
+        invBtn.className = "px-3 py-1 text-gray-400 hover:text-white font-bold text-xs rounded-sm flex items-center space-x-1 transition";
+      }
+      renderLeftPanel();
+    }
+
+    function renderLeftPanel() {
+      const grid = document.getElementById('leftPanelGrid');
+      const countEl = document.getElementById('leftPanelCount');
+
+      if (activeLeftTab === 'inventory') {
+        const items = currentUser ? currentUser.inventory : [];
+        countEl.innerText = `${items.length} предм.`;
+
+        if (!items || items.length === 0) {
+          grid.innerHTML = `<div class="col-span-3 text-center text-xs text-gray-500 py-10">Инвентарь пуст</div>`;
+          return;
+        }
+
+        grid.innerHTML = items.map(item => {
+          const isSelected = selectedMyItems.some(i => i.id === item.id);
+          const imgSrc = item.image || '/img/placeholder.png';
+          return `
+            <div onclick="toggleSelectMyItem('${item.id}')" class="bg-[#0a0c10] border ${isSelected ? 'border-brand-gold' : 'border-brand-cardBorder'} p-2 rounded-sm flex flex-col justify-between items-center cursor-pointer hover:border-gray-500 transition h-32">
+              <div class="flex-1 flex items-center justify-center w-full">
+                <img src="${imgSrc}" class="max-h-16 max-w-full object-contain" alt="${item.name}" />
+              </div>
+              <div class="text-center w-full mt-1">
+                <span class="text-[10px] font-bold text-gray-300 truncate block w-full">${item.name}</span>
+                <span class="text-xs font-bold text-brand-gold block">${item.price} G</span>
+              </div>
+            </div>
+          `;
+        }).join('');
+      } else {
+        countEl.innerText = `${storeSkins.length} предм.`;
+        grid.innerHTML = storeSkins.map(item => {
+          const imgSrc = item.image || '/img/placeholder.png';
+          return `
+            <div class="bg-[#0a0c10] border border-brand-cardBorder p-2 rounded-sm flex flex-col justify-between items-center h-32">
+              <div class="flex-1 flex items-center justify-center w-full">
+                <img src="${imgSrc}" class="max-h-14 max-w-full object-contain" alt="${item.name}" />
+              </div>
+              <div class="text-center w-full my-1">
+                <span class="text-[10px] font-bold text-gray-300 truncate block w-full">${item.name}</span>
+                <span class="text-xs font-bold text-brand-gold block">${item.price} G</span>
+              </div>
+              <button onclick="buySkinDirect('${item.id}')" class="w-full bg-brand-gold hover:bg-brand-goldHover text-black font-bold text-[10px] py-1 rounded-sm uppercase">Купить</button>
+            </div>
+          `;
+        }).join('');
+      }
+    }
+
+    function renderStore() {
+      const grid = document.getElementById('storeGrid');
+      const search = document.getElementById('searchInput').value.toLowerCase();
+      const filtered = storeSkins.filter(s => s.name.toLowerCase().includes(search));
+
+      grid.innerHTML = filtered.map(item => {
+        const isSelected = selectedTargetItem && selectedTargetItem.id === item.id;
+        const imgSrc = item.image || '/img/placeholder.png';
+        return `
+          <div onclick="selectTargetItem('${item.id}')" class="bg-[#0a0c10] border ${isSelected ? 'border-brand-gold' : 'border-brand-cardBorder'} p-2 rounded-sm flex flex-col justify-between items-center cursor-pointer hover:border-gray-500 transition h-32">
+            <span class="text-[10px] font-bold text-gray-300 truncate w-full text-center">${item.name}</span>
+            <div class="flex-1 flex items-center justify-center w-full my-1">
+              <img src="${imgSrc}" class="max-h-16 max-w-full object-contain" alt="${item.name}" />
+            </div>
+            <span class="text-xs font-bold text-brand-gold text-center w-full">${item.price} G</span>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function applyMultiplier(mult) {
+      const mySum = selectedMyItems.reduce((acc, i) => acc + i.price, 0);
+      if (mySum <= 0) return showBanner('Сначала выберите хотя бы один предмет из своего инвентаря!', 'error');
+
+      const targetPrice = mySum * mult;
+      const closest = storeSkins.reduce((prev, curr) => Math.abs(curr.price - targetPrice) < Math.abs(prev.price - targetPrice) ? curr : prev);
+      selectedTargetItem = closest;
+      renderStore();
+      updateGauge();
+    }
+
+    function applyChance(targetChance) {
+      const mySum = selectedMyItems.reduce((acc, i) => acc + i.price, 0);
+      if (mySum <= 0) return showBanner('Сначала выберите предметы из своего инвентаря!', 'error');
+
+      const requiredTargetPrice = (mySum / targetChance) * 100;
+      const closest = storeSkins.reduce((prev, curr) => Math.abs(curr.price - requiredTargetPrice) < Math.abs(prev.price - requiredTargetPrice) ? curr : prev);
+      selectedTargetItem = closest;
+      renderStore();
+      updateGauge();
+    }
+
+    function updateGauge() {
+      const mySum = selectedMyItems.reduce((acc, i) => acc + i.price, 0);
+      document.getElementById('mySelectedSum').innerText = `${mySum.toFixed(2)} G`;
+
+      const selectedPreview = document.getElementById('selectedMyItemsPreview');
+      if (selectedMyItems.length === 0) {
+        selectedPreview.innerHTML = `<span class="text-xs text-gray-500 text-center">Нажмите на скин из инвентаря снизу</span>`;
+      } else {
+        selectedPreview.innerHTML = selectedMyItems.map(item => {
+          const imgSrc = item.image || '/img/placeholder.png';
+          return `
+            <div class="bg-[#131722] border border-brand-cardBorder p-1 rounded flex flex-col items-center justify-center w-16 text-center relative group">
+              <img src="${imgSrc}" class="h-8 max-w-full object-contain mb-0.5" alt="${item.name}" />
+              <span class="text-[8px] font-bold text-gray-200 truncate w-full block">${item.name}</span>
+              <span class="text-[9px] font-bold text-brand-gold block">${item.price} G</span>
+            </div>
+          `;
+        }).join('');
+      }
+
+      let rawChance = 0;
+      if (selectedTargetItem && mySum > 0) {
+        rawChance = (mySum / selectedTargetItem.price) * 100;
+      }
+
+      const displayChance = Math.min(rawChance, 100);
+
+      const percentText = document.getElementById('chancePercentText');
+      const statusText = document.getElementById('chanceStatusText');
+      const arc = document.getElementById('chanceCircleArc');
+      const btn = document.getElementById('upgradeBtn');
+      const btnText = document.getElementById('upgradeBtnText');
+      const arrow = document.getElementById('pointerArrow');
+
+      percentText.innerText = `${displayChance.toFixed(2)}%`;
+      const totalDash = 263.89;
+
+      if (rawChance > 70) {
+        percentText.className = "text-3xl font-black tracking-tight text-red-500";
+        statusText.innerText = "Макс. шанс 70%";
+        statusText.className = "text-[10px] uppercase font-bold text-red-400 tracking-wider";
+        
+        arc.setAttribute('stroke', '#ef4444');
+        arrow.className = "w-0 h-0 border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent border-t-[14px] border-t-red-500 -mt-1 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]";
+
+        btn.disabled = true;
+        btnText.innerText = "Шанс выше 70% запрещен";
+      } else {
+        percentText.className = "text-3xl font-black tracking-tight text-white";
+        statusText.innerText = "Шанс успеха";
+        statusText.className = "text-[10px] uppercase font-semibold text-gray-400 tracking-wider";
+        
+        arc.setAttribute('stroke', '#eab308');
+        arrow.className = "w-0 h-0 border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent border-t-[14px] border-t-brand-gold -mt-1 drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)]";
+
+        btn.disabled = false;
+        btnText.innerText = "Прокачать";
+      }
+
+      arc.style.strokeDashoffset = totalDash - (totalDash * (displayChance / 100));
+
+      const targetBox = document.getElementById('targetItemPreview');
+      if (selectedTargetItem) {
+        const imgSrc = selectedTargetItem.image || '/img/placeholder.png';
+        targetBox.innerHTML = `
+          <div class="text-center flex flex-col items-center justify-center">
+            <img src="${imgSrc}" class="max-h-20 max-w-full object-contain mb-2" alt="${selectedTargetItem.name}" />
+            <span class="text-xs font-bold text-white block">${selectedTargetItem.name}</span>
+            <span class="text-sm font-black text-brand-gold block mt-1">${selectedTargetItem.price} G</span>
+          </div>
+        `;
+      } else {
+        targetBox.innerHTML = `<span class="text-xs text-gray-500 text-center">Выберите скин из каталога справа</span>`;
+      }
+    }
+
+    function toggleSelectMyItem(id) {
+      const item = currentUser?.inventory.find(i => i.id === id);
+      if (!item) return;
+      const idx = selectedMyItems.findIndex(i => i.id === id);
+      if (idx > -1) selectedMyItems.splice(idx, 1);
+      else selectedMyItems.push(item);
+      renderLeftPanel();
+      updateGauge();
+    }
+
+    function selectTargetItem(id) {
+      selectedTargetItem = storeSkins.find(s => s.id === id);
+      renderStore();
+      updateGauge();
+    }
+
+    function renderProfilePage() {
+      if (!currentUser) return openAuthModal('login');
+      document.getElementById('profileUsername').innerText = currentUser.username;
+      document.getElementById('profileUserId').innerText = `ID ${currentUser.id}`;
+      document.getElementById('profileAvatar').innerText = currentUser.username[0].toUpperCase();
+      document.getElementById('profileBalance').innerText = `${currentUser.balance.toFixed(2)} 🪙`;
+      document.getElementById('profileUpgradesCount').innerText = currentUser.upgradesCount || 0;
+
+      let bestItem = currentUser.bestDrop || null;
+      if (currentUser.inventory && currentUser.inventory.length > 0) {
+        const maxInventoryItem = currentUser.inventory.reduce((max, item) => item.price > max.price ? item : max, currentUser.inventory[0]);
+        if (!bestItem || maxInventoryItem.price > bestItem.price) {
+          bestItem = maxInventoryItem;
+        }
+      }
+
+      if (bestItem) {
+        document.getElementById('profileBestDropName').innerText = bestItem.name;
+        document.getElementById('profileBestDropPrice').innerText = `${bestItem.price.toFixed(2)} 🪙`;
+      } else {
+        document.getElementById('profileBestDropName').innerText = 'Нет дропа';
+        document.getElementById('profileBestDropPrice').innerText = '0.00 🪙';
+      }
+
+      const pGrid = document.getElementById('profileInventoryGrid');
+      if (!currentUser.inventory || currentUser.inventory.length === 0) {
+        pGrid.innerHTML = `<div class="col-span-6 text-center text-xs text-gray-500 py-6">У вас пока нет предметов</div>`;
+      } else {
+        pGrid.innerHTML = currentUser.inventory.map(item => {
+          const imgSrc = item.image || '/img/placeholder.png';
+          return `
+            <div class="bg-[#0a0c10] border border-brand-cardBorder p-3 rounded-sm text-center flex flex-col justify-between items-center h-32">
+              <div class="flex-1 flex items-center justify-center w-full">
+                <img src="${imgSrc}" class="max-h-16 max-w-full object-contain" alt="${item.name}" />
+              </div>
+              <div class="w-full">
+                <span class="text-xs font-bold text-gray-300 block truncate">${item.name}</span>
+                <span class="text-xs font-bold text-brand-gold block mt-1">${item.price} G</span>
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+    }
+
+    async function buySkinDirect(skinId) {
+      if (!currentUser) return openAuthModal('login');
+      const token = localStorage.getItem('upgrader_token');
+      try {
+        const res = await fetch(`${API_BASE}/shop/buy`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ skinId })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showBanner('Скин успешно куплен!', 'success');
+          currentUser = data.user;
+          renderHeaderAuth();
+          renderLeftPanel();
+        } else showBanner(data.message, 'error');
+      } catch (err) {
+        showBanner('Ошибка соединения с сервером', 'error');
+      }
+    }
+
+    async function applyPromoCode() {
+      const code = document.getElementById('promoInput').value.trim();
+      if (!code) return showBanner('Введите купон', 'error');
+      const token = localStorage.getItem('upgrader_token');
+      try {
+        const res = await fetch(`${API_BASE}/user/promo`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ code })
+        });
+        const data = await res.json();
+        if (data.success) {
+          showBanner(`Купон применен! Зачислено ${data.added} Gold`, 'success');
+          currentUser.balance = data.newBalance;
+          renderHeaderAuth();
+          renderProfilePage();
+        } else showBanner(data.message, 'error');
+      } catch (err) {
+        showBanner('Ошибка при активации купона', 'error');
+      }
+    }
+
+    function showBanner(msg, type) {
+      const el = document.getElementById('resultNotification');
+      el.innerText = msg;
+      el.classList.remove('hidden', 'bg-emerald-500/20', 'border-emerald-500', 'text-emerald-400', 'bg-red-500/20', 'border-red-500', 'text-red-400');
+
+      if (type === 'success') {
+        el.classList.add('bg-emerald-500/20', 'border', 'border-emerald-500', 'text-emerald-400');
+      } else {
+        el.classList.add('bg-red-500/20', 'border', 'border-red-500', 'text-red-400');
+      }
+
+      setTimeout(() => el.classList.add('hidden'), 4000);
+    }
+
+    async function handleStartUpgrade() {
+      if (!currentUser) return openAuthModal('login');
+      if (selectedMyItems.length === 0 || !selectedTargetItem) return showBanner('Выберите ваши предметы и целевой скин!', 'error');
+
+      const token = localStorage.getItem('upgrader_token');
+      try {
+        const res = await fetch(`${API_BASE}/upgrade`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ selectedItemIds: selectedMyItems.map(i => i.id), targetItem: selectedTargetItem })
+        });
+        const data = await res.json();
+        if (data.success) {
+          const arrow = document.getElementById('pointerArrowContainer');
+          const animDuration = isFastSpin ? 600 : 3500;
+          
+          arrow.style.transitionDuration = '0ms';
+          arrow.style.transform = `rotate(0deg)`;
+
+          setTimeout(() => {
+            arrow.style.transitionDuration = `${animDuration}ms`;
+            arrow.style.transform = `rotate(${3600 + (data.rolled / 100) * 360}deg)`;
+          }, 20);
+
+          setTimeout(() => {
+            if (data.isWin) {
+              showBanner(`ПОБЕДА! Вы выбили ${selectedTargetItem.name}`, 'success');
+            } else {
+              showBanner('НЕУДАЧА! Предметы сгорели', 'error');
+            }
+
+            currentUser.inventory = data.updatedInventory;
+            if (data.bestDrop) currentUser.bestDrop = data.bestDrop;
+            currentUser.upgradesCount = (currentUser.upgradesCount || 0) + 1;
+            selectedMyItems = [];
+            renderLeftPanel();
+            updateGauge();
+          }, animDuration + 100);
+        } else {
+          showBanner(data.message, 'error');
+        }
+      } catch (err) {
+        showBanner('Ошибка обработки запроса', 'error');
+      }
+    }
+
+    function openDepositModal() { document.getElementById('depositModal').classList.remove('hidden'); }
+    function closeDepositModal() { document.getElementById('depositModal').classList.add('hidden'); }
+    function selectDepositAmount(amt) { document.getElementById('customDepositInput').value = amt; }
+    
+    async function processStarsDeposit() {
+      const amt = parseFloat(document.getElementById('customDepositInput').value);
+      if (!amt || amt <= 0) return showBanner('Укажите сумму', 'error');
+      showBanner(`Счет на ${amt} Gold создан! Перенаправление...`, 'success');
+      closeDepositModal();
+    }
+
+    function openAuthModal(m) { authMode = m; document.getElementById('authModal').classList.remove('hidden'); }
+    function closeAuthModal() { document.getElementById('authModal').classList.add('hidden'); }
+    function toggleAuthMode() { openAuthModal(authMode === 'login' ? 'register' : 'login'); }
+
+    async function submitAuth() {
+      const username = document.getElementById('authUsername').value.trim();
+      const password = document.getElementById('authPassword').value.trim();
+      try {
+        const res = await fetch(`${API_BASE}/auth/${authMode}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+        const data = await res.json();
+        if (data.success) {
+          localStorage.setItem('upgrader_token', data.token);
+          currentUser = data.user;
+          closeAuthModal();
+          renderHeaderAuth();
+          renderLeftPanel();
+        } else showBanner(data.message, 'error');
+      } catch (err) {
+        showBanner('Ошибка авторизации', 'error');
+      }
+    }
+
+    function logout() {
+      localStorage.removeItem('upgrader_token');
+      currentUser = null;
+      renderHeaderAuth();
+      renderLeftPanel();
+      switchTab('upgrader');
+    }
+  </script>
+</body>
+</html>
