@@ -7,10 +7,7 @@ const fs = require('fs');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Сервер запущен на порту ${PORT}`);
-});
-const JWT_SECRET = 'supersecret_upgrader_key';
+const JWT_SECRET = process.env.JWT_SECRET || 'supersecret_upgrader_key';
 const DB_PATH = path.join(__dirname, 'db.json');
 
 app.use(cors());
@@ -221,5 +218,5 @@ app.post('/api/upgrade', authenticateToken, (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`Сервер успешно запущен: http://localhost:${PORT}`);
+  console.log(`Сервер успешно запущен на порту: ${PORT}`);
 });
