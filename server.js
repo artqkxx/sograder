@@ -6,7 +6,10 @@ const path = require('path');
 const fs = require('fs');
 
 const app = express();
-const PORT = 5000;
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => {
+  console.log(`Сервер запущен на порту ${PORT}`);
+});
 const JWT_SECRET = 'supersecret_upgrader_key';
 const DB_PATH = path.join(__dirname, 'db.json');
 
